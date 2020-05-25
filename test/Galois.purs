@@ -3,7 +3,7 @@ module Test.Galois where
 import Control.Monad.State (evalState)
 import Data.Array (length)
 import Data.Tuple (fst, snd)
-import Galois (gfDiv, gfInv, gfMul, gfPolyAdd, gfPolyMul, gfPolyScale, gfPow, initLookups)
+import Galois (gfDiv, gfInv, gfMul, gfPolyAdd, gfPolyEval, gfPolyMul, gfPolyScale, gfPow, initLookups)
 import Prelude (Unit, discard, flip, bind, pure, ($))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
@@ -64,3 +64,8 @@ spec =
       shouldEqual [ 1, 1, 0, 1, 0, 0, 1 ] a1
       a2 <- pure $ flip evalState lkps $ gfPolyMul [ 1, 1, 0, 0, 1 ] [ 1, 0, 1 ]
       shouldEqual [ 1, 1, 1, 1, 1, 0, 1 ] a2
+    it "evaluates polynomials correctly" do
+      a1 <- pure $ flip evalState lkps $ gfPolyEval [ 1, 15, 36, 78, 40 ] 3
+      shouldEqual 10 a1
+      a2 <- pure $ flip evalState lkps $ gfPolyEval [ 0x1, 0xF, 0x36, 0x78, 0x40 ] 1
+      shouldEqual 0 a2

@@ -7,10 +7,13 @@ module Galois
   , gfPolyScale
   , gfPolyAdd
   , gfPolyMul
+  , gfPolyEval
   ) where
 
+import Prelude
 import Control.Monad.State (State, get)
-import Data.Array (drop, foldr, length, replicate, snoc, take, updateAt, zipWith, (!!))
+import Data.Array (drop, length, replicate, snoc, take, uncons, updateAt, zipWith, (!!))
+import Data.Foldable (foldM, foldr)
 import Data.Int.Bits (xor, shl)
 import Data.Maybe (Maybe(..))
 import Data.Ord (abs)
@@ -18,7 +21,6 @@ import Data.Traversable (for)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..), swap)
 import Effect.Exception.Unsafe (unsafeThrow)
-import Prelude
 
 -- Lookups = (Exp, Log)
 type Lookups
@@ -102,6 +104,18 @@ gfPolyMul p1 p2 = do
           a <- for p2 $ gfMul x
           pure $ take i zeros <> a <> drop i zeros
   pure $ foldr (\x a -> zipWith xor a x) zeros v
+
+gfPolyEval :: Poly -> Int -> StateL Int
+gfPolyEval p i = case uncons p of
+  Just { head: x, tail: xs } ->
+    foldM
+      ( \a c -> do
+          v <- gfMul a i
+          pure $ xor v c
+      )
+      x
+      xs
+  Nothing -> unsafeThrow $ "gfEval: failed to uncons with p=" <> show p <> ", i=" <> show i
 
 -----------------
 ----  Utils  ----
