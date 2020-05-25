@@ -115,7 +115,7 @@ gfPolyEval p i = case uncons p of
       )
       x
       xs
-  Nothing -> unsafeThrow $ "gfEval: failed to uncons with p=" <> show p <> ", i=" <> show i
+  Nothing -> unsafeThrow $ "gfPolyEval: failed to uncons with p=" <> show p <> ", i=" <> show i
 
 -----------------
 ----  Utils  ----
