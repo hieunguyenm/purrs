@@ -1,10 +1,21 @@
 module Test.Galois where
 
+import Prelude
 import Control.Monad.State (evalState)
 import Data.Array (length)
 import Data.Tuple (fst, snd)
-import Galois (gfDiv, gfInv, gfMul, gfPolyAdd, gfPolyEval, gfPolyMul, gfPolyScale, gfPow, initLookups)
-import Prelude (Unit, discard, flip, bind, pure, ($))
+import Galois
+  ( gfDiv
+  , gfInv
+  , gfMul
+  , gfPolyAdd
+  , gfPolyDiv
+  , gfPolyEval
+  , gfPolyMul
+  , gfPolyScale
+  , gfPow
+  , initLookups
+  )
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -58,7 +69,8 @@ spec =
       shouldEqual [ 29, 109, 144, 28 ] a2
     it "adds polynomials correctly" do
       shouldEqual [ 1, 0, 1, 1, 0 ] $ gfPolyAdd [ 1, 0, 0, 1, 1 ] [ 1, 0, 1 ]
-      shouldEqual [ 2, 47, 36, 26 ] $ gfPolyAdd [ 5, 32, 7, 25 ] [ 7, 15, 35, 3 ]
+      shouldEqual [ 2, 47, 36, 26 ]
+        $ gfPolyAdd [ 5, 32, 7, 25 ] [ 7, 15, 35, 3 ]
     it "multiplies polynomials correctly" do
       a1 <- pure $ flip evalState lkps $ gfPolyMul [ 1, 1, 1, 0, 1 ] [ 1, 0, 1 ]
       shouldEqual [ 1, 1, 0, 1, 0, 0, 1 ] a1
@@ -67,5 +79,15 @@ spec =
     it "evaluates polynomials correctly" do
       a1 <- pure $ flip evalState lkps $ gfPolyEval [ 1, 15, 36, 78, 40 ] 3
       shouldEqual 10 a1
-      a2 <- pure $ flip evalState lkps $ gfPolyEval [ 0x1, 0xF, 0x36, 0x78, 0x40 ] 1
+      a2 <-
+        pure $ flip evalState lkps
+          $ gfPolyEval [ 0x1, 0xF, 0x36, 0x78, 0x40 ] 1
       shouldEqual 0 a2
+    it "divides polynomials correctly" do
+      a1 <-
+        pure $ flip evalState lkps
+          $ gfPolyDiv [ 0x12, 0x34, 0x56, 0, 0, 0, 0 ]
+              [ 0x1, 0xf, 0x36, 0x78, 0x40 ]
+      shouldEqual [ 0x12, 0xda, 0xdf, 0x37, 0xe6, 0x78, 0xd9 ]
+        $ fst a1
+        <> snd a1

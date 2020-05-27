@@ -1,5 +1,8 @@
 module Galois
-  ( initLookups
+  ( StateL
+  , Lookups
+  , Poly
+  , initLookups
   , gfMul
   , gfDiv
   , gfPow
@@ -8,12 +11,26 @@ module Galois
   , gfPolyAdd
   , gfPolyMul
   , gfPolyEval
+  , gfPolyDiv
   ) where
 
 import Prelude
 import Control.Monad.State (State, get)
-import Data.Array (drop, length, replicate, snoc, take, uncons, updateAt, zipWith, (!!))
+import Data.Array
+  ( drop
+  , dropEnd
+  , length
+  , replicate
+  , snoc
+  , take
+  , takeEnd
+  , uncons
+  , updateAt
+  , zipWith
+  , (!!)
+  )
 import Data.Foldable (foldM, foldr)
+import Data.FoldableWithIndex (foldWithIndexM)
 import Data.Int.Bits (xor, shl)
 import Data.Maybe (Maybe(..))
 import Data.Ord (abs)
@@ -22,7 +39,7 @@ import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..), swap)
 import Effect.Exception.Unsafe (unsafeThrow)
 
--- Lookups = (Exp, Log)
+-- (Tuple exp log)
 type Lookups
   = Tuple (Array Int) (Array Int)
 
@@ -39,15 +56,30 @@ initLookups :: Lookups
 initLookups = initExpLog 0 1 $ Tuple [] $ replicate 256 0
 
 initExpLog :: Int -> Int -> Lookups -> Lookups
-initExpLog 0 i (Tuple exp log) = initExpLog i 2 $ Tuple [ i ] $ updateLogAt 2 i log
+initExpLog 0 i (Tuple exp log) =
+  initExpLog
+    i
+    2
+    $ Tuple [ i ]
+    $ updateLogAt 2 i log
 
 initExpLog 255 x lkps = extendExp lkps
 
 initExpLog i x (Tuple exp log)
-  | x > 255 = initExpLog (i + 1) (shl x' 1) $ Tuple (snoc exp x') $ updateLogAt x' i log
+  | x > 255 =
+    initExpLog
+      (i + 1)
+      (shl x' 1)
+      $ Tuple (snoc exp x')
+      $ updateLogAt x' i log
     where
     x' = xor x primitive
-  | otherwise = initExpLog (i + 1) (shl x 1) $ Tuple (snoc exp x) $ updateLogAt x i log
+  | otherwise =
+    initExpLog
+      (i + 1)
+      (shl x 1)
+      $ Tuple (snoc exp x)
+      $ updateLogAt x i log
 
 extendExp :: Lookups -> Lookups
 extendExp (Tuple exp log) = swap $ Tuple log $ exp <> exp <> take 2 exp
@@ -115,22 +147,56 @@ gfPolyEval p i = case uncons p of
       )
       x
       xs
-  Nothing -> unsafeThrow $ "gfPolyEval: failed to uncons with p=" <> show p <> ", i=" <> show i
+  Nothing ->
+    unsafeThrow
+      $ "gfPolyEval: failed to uncons with p="
+      <> show p
+      <> ", i="
+      <> show i
 
------------------
-----  Utils  ----
------------------
+gfPolyDiv :: Poly -> Poly -> StateL (Tuple Poly Poly)
+gfPolyDiv dend dsor = do
+  let
+    sep = length dsor - 1
+
+    zeros = replicate (length dend) 0
+  res <-
+    foldWithIndexM
+      ( \i a1 _ ->
+          let
+            c = a1 !!! i
+          in
+            case c == 0 of
+              true -> pure a1
+              _ ->
+                foldWithIndexM
+                  ( \j a2 d -> case d == 0 of
+                      true -> pure a2
+                      _ -> do
+                        v <- gfMul d c
+                        pure $ zipWith xor a2
+                          $ take (i + j + 1) zeros
+                          <> [ v ]
+                          <> drop (i + j + 2) zeros
+                  )
+                  a1
+                  $ drop 1 dsor
+      )
+      dend
+      $ take (length dend - length dsor + 1) dend
+  pure $ Tuple (dropEnd sep res) $ takeEnd sep res
+
 --
--- Replicate crash on illegal use in Haskell
+-- Utils to replicate crash on illegal use in Haskell
 --
 updateLogAt :: Int -> Int -> Array Int -> Array Int
 updateLogAt ind val log = case updateAt ind val log of
   Just log' -> log'
-  Nothing -> unsafeThrow $ "updateLogAt failed with index " <> show ind
+  Nothing -> unsafeThrow $ "updateLogAt: failed with index " <> show ind
 
 unsafeIndex :: Array Int -> Int -> Int
 unsafeIndex a i = case a !! i of
   Just v -> v
-  Nothing -> unsafeThrow $ "unsafeIndex failed with index " <> show i
+  Nothing -> unsafeThrow $ "unsafeIndex: failed with index " <> show i
 
 infixl 8 unsafeIndex as !!!
