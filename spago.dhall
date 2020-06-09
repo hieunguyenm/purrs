@@ -1,4 +1,4 @@
-{ name = "purs"
+{ name = "purrs"
 , dependencies = 
   [ "console"
   , "effect"
