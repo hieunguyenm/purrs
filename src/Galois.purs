@@ -133,7 +133,7 @@ gfPolyMul p1 p2 = do
       $ \i x -> do
           a <- for p2 $ gfMul x
           pure $ take i zeros <> a <> drop i zeros
-  pure $ foldr (\x a -> zipWith xor a x) zeros v
+  pure $ foldr (zipWith xor) zeros v
 
 gfPolyEval :: Poly -> Int -> StateL Int
 gfPolyEval p i = case uncons p of
