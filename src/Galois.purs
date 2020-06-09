@@ -87,10 +87,7 @@ extendExp (Tuple exp log) = swap $ Tuple log $ exp <> exp <> take 2 exp
 gfMul :: Int -> Int -> StateL Int
 gfMul x y = do
   (Tuple exp log) <- get
-  pure
-    $ case x == 0 || y == 0 of
-        true -> 0
-        _ -> exp !!! (log !!! x + log !!! y)
+  pure $ if x == 0 || y == 0 then 0 else exp !!! (log !!! x + log !!! y)
 
 gfDiv :: Int -> Int -> StateL Int
 gfDiv x y = do
@@ -122,9 +119,10 @@ gfPolyAdd p1 p2 =
 
     absd = abs d
   in
-    case d > 0 of
-      true -> take absd p1 <> zipWith xor (drop absd p1) p2
-      _ -> take absd p2 <> zipWith xor (drop absd p2) p1
+    if d > 0 then
+      take absd p1 <> zipWith xor (drop absd p1) p2
+    else
+      take absd p2 <> zipWith xor (drop absd p2) p1
 
 gfPolyMul :: Poly -> Poly -> StateL Poly
 gfPolyMul p1 p2 = do
@@ -139,15 +137,12 @@ gfPolyMul p1 p2 = do
 
 gfPolyEval :: Poly -> Int -> StateL Int
 gfPolyEval p i = case uncons p of
-  Just { head: x, tail: xs } ->
-    foldM
-      ( \a c -> do
-          v <- gfMul a i
-          pure $ xor v c
-      )
-      x
-      xs
-  Nothing ->
+  Just { head: x, tail: xs } -> foldM f x xs
+    where
+    f = \a c -> do
+      v <- gfMul a i
+      pure $ xor v c
+  _ ->
     unsafeThrow
       $ "gfPolyEval: failed to uncons with p="
       <> show p
@@ -160,30 +155,21 @@ gfPolyDiv dend dsor = do
     sep = length dsor - 1
 
     zeros = replicate (length dend) 0
-  res <-
-    foldWithIndexM
-      ( \i a1 _ ->
-          let
-            c = a1 !!! i
-          in
-            case c == 0 of
-              true -> pure a1
-              _ ->
-                foldWithIndexM
-                  ( \j a2 d -> case d == 0 of
-                      true -> pure a2
-                      _ -> do
-                        v <- gfMul d c
-                        pure $ zipWith xor a2
-                          $ take (i + j + 1) zeros
-                          <> [ v ]
-                          <> drop (i + j + 2) zeros
-                  )
-                  a1
-                  $ drop 1 dsor
-      )
-      dend
-      $ take (length dend - length dsor + 1) dend
+
+    f1 = \i a1 _ ->
+      let
+        c = a1 !!! i
+      in
+        if c == 0 then pure a1 else foldWithIndexM (f2 i c) a1 $ drop 1 dsor
+
+    f2 = \i c j a2 d -> case d == 0 of
+      true -> pure a2
+      _ -> do
+        v <- gfMul d c
+        pure $ zipWith xor a2 $ take n zeros <> [ v ] <> drop (n + 1) zeros
+        where
+        n = i + j + 1
+  res <- foldWithIndexM f1 dend $ take (length dend - length dsor + 1) dend
   pure $ Tuple (dropEnd sep res) $ takeEnd sep res
 
 --
