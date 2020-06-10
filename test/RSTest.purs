@@ -4,7 +4,7 @@ import Prelude
 import Control.Monad.State (evalState)
 import Data.Array (drop, replicate)
 import Galois (initLookups)
-import RS (check, encodeMsg, generator, syndrome)
+import RS (calcSyndromes, check, encodeMsg, generator)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -29,9 +29,9 @@ spec =
         pure $ flip evalState lkps $ encodeMsg plainMsg sym
       shouldEqual encodedMsg a1
     it "calculates correct syndrome polynomials" do
-      a1 <- pure $ flip evalState lkps $ syndrome encodedMsg sym
+      a1 <- pure $ flip evalState lkps $ calcSyndromes encodedMsg sym
       shouldEqual a1 $ replicate sym 0
-      a2 <- pure $ flip evalState lkps $ syndrome corruptMsg sym
+      a2 <- pure $ flip evalState lkps $ calcSyndromes corruptMsg sym
       shouldEqual [ 64, 192, 93, 231, 52, 92, 228, 49, 83, 245 ] a2
     it "checks for corrupt messages correctly" do
       a1 <- pure $ flip evalState lkps $ check encodedMsg sym

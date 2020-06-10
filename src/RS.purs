@@ -1,7 +1,7 @@
-module RS (check, encodeMsg, generator, syndrome) where
+module RS (calcSyndromes, check, encodeMsg, generator) where
 
 import Prelude
-import Data.Array (length, replicate)
+import Data.Array ((..), length, replicate)
 import Data.Foldable (maximum)
 import Data.FoldableWithIndex (foldWithIndexM)
 import Data.Maybe (Maybe(..))
@@ -21,7 +21,7 @@ genPoly sym i p
     g <- gfPolyMul p [ 1, pow ]
     genPoly sym (i + 1) g
 
-encodeMsg :: Array Int -> Int -> StateL (Array Int)
+encodeMsg :: Poly -> Int -> StateL Poly
 encodeMsg msg sym
   | length msg + sym > 255 =
     unsafeThrow
@@ -34,17 +34,17 @@ encodeMsg msg sym
     (Tuple _ r) <- gfPolyDiv (msg <> replicate (length g - 1) 0) g
     pure $ msg <> r
 
-syndrome :: Array Int -> Int -> StateL (Array Int)
-syndrome msg sym = foldWithIndexM f [] $ replicate sym 0
+calcSyndromes :: Poly -> Int -> StateL Poly
+calcSyndromes msg sym = foldWithIndexM f [] $ 0 .. (sym - 1)
   where
   f = \i a _ -> do
     p <- gfPow 2 i
     v <- gfPolyEval msg p
     pure $ a <> [ v ]
 
-check :: Array Int -> Int -> StateL Boolean
+check :: Poly -> Int -> StateL Boolean
 check msg sym = do
-  p <- syndrome msg sym
+  p <- calcSyndromes msg sym
   pure
     $ case maximum p of
         Just 0 -> true
